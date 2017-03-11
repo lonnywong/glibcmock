@@ -3,35 +3,25 @@
 # This file can be validated on:
 # http://lint.travis-ci.org/
 
-install:
+before_install:
 # /usr/bin/gcc is 4.6 always, but gcc-X.Y is available.
-- if [ "$CXX" = "g++" ]; then export CXX="g++-4.9" CC="gcc-4.9"; fi
+  - if [ "$CXX" = "g++" ]; then export CXX="g++-4.9" CC="gcc-4.9"; fi
 # /usr/bin/clang is 3.4, lets override with modern one.
-- if [ "$CXX" = "clang++" ] && [ "$TRAVIS_OS_NAME" = "linux" ]; then export CXX="clang++-3.7" CC="clang-3.7"; fi
-- echo ${PATH}
-- echo ${CXX}
-- ${CXX} --version
-- ${CXX} -v
-addons:
-  apt:
-    # List of whitelisted in travis packages for ubuntu-precise can be found here:
-    #   https://github.com/travis-ci/apt-package-whitelist/blob/master/ubuntu-precise
-    # List of whitelisted in travis apt-sources:
-    #   https://github.com/travis-ci/apt-source-whitelist/blob/master/ubuntu.json
-    sources:
-    - ubuntu-toolchain-r-test
-    - llvm-toolchain-precise-3.7
-    packages:
-    - gcc-4.9
-    - g++-4.9
-    - clang-3.7
-    - valgrind
+  - if [ "$CXX" = "clang++" ] && [ "$TRAVIS_OS_NAME" = "linux" ]; then export CXX="clang++-3.7" CC="clang-3.7"; fi
+  - echo ${PATH}
+  - echo ${CXX}
+  - ${CXX} --version
+  - ${CXX} -v
+  - pip install --user cpp-coveralls
 os:
   - linux
 language: cpp
 compiler:
   - gcc
   - clang
-
 script:
   - cd test && make clean && make && make test
+  - find .. -name '*.cc' -not -path '../test/*' | xargs gcov-5 -n -o ..
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
+  - coveralls -b test -r .. -e test -x cc --gcov-options '\-lp'

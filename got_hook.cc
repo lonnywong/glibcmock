@@ -53,11 +53,11 @@ struct Elf_Info {
     // initialized or not
     bool inited{false};
     // section header table
-    Elf64_Shdr *sh_tbl{nullptr};
+    std::unique_ptr<Elf64_Shdr[]> sh_tbl;
     // section header table count
     size_t sh_cnt{0};
     // section header string table
-    char *shstr_tbl{nullptr};
+    std::unique_ptr<char[]> shstr_tbl;
     // section header string table size
     size_t shstr_tab_size{0};
     // dynamic linker symbol table
@@ -82,11 +82,6 @@ struct Elf_Info {
     // end of segment virtual address
     const char *relro_end{nullptr};
 #endif
-    Elf_Info() = default;
-    ~Elf_Info() {
-        delete[] sh_tbl;
-        delete[] shstr_tbl;
-    };
 };
 
 // Initialize ELF information.
@@ -118,23 +113,24 @@ static std::stack<unsigned int> g_object_stack;
 static size_t g_page_size = sysconf(_SC_PAGESIZE);
 #endif
 
+// auto add error number and error description string to the end
+#define E(S) S << " error [" << errno << "] [" << strerror(errno) << "]"
+
 // Initialize ELF information.
 static void InitElfInfo() noexcept {
     // get ELF base address
     FILE *fp = fopen("/proc/self/maps", "r");
-    ASSERT_NE(nullptr, fp) << "fopen [/proc/self/maps] error [" << errno << "] [" << strerror(errno) << "]";
+    E(ASSERT_NE(nullptr, fp) << "fopen [/proc/self/maps]");
     char buf[128];
-    if (fgets(buf, sizeof(buf), fp) == nullptr) {
-        fclose(fp);
-        FAIL() << "fgets [/proc/self/maps] error [" << errno << "] [" << strerror(errno) << "]";
-    }
+    auto p = fgets(buf, sizeof(buf), fp);
     fclose(fp);
+    E(ASSERT_NE(nullptr, p) << "fgets [/proc/self/maps]");
     unsigned long base;
     ASSERT_EQ(1, sscanf(buf, "%lx-%*x r-xp %*x %*x:%*x %*u ", &base)) << "invalid [/proc/self/maps] [" << buf << "]";
 
     // open executable file to read ELF information
     int fd = open("/proc/self/exe", O_RDONLY);
-    ASSERT_NE(-1, fd) << "open [/proc/self/exe] error [" << errno << "] [" << strerror(errno) << "]";
+    E(ASSERT_NE(-1, fd) << "open [/proc/self/exe]");
     DoInitElfInfo(fd, (const Elf64_Ehdr*) base);
     close(fd);
 
@@ -151,30 +147,29 @@ static void DoInitElfInfo(const int fd, const Elf64_Ehdr *ehdr) noexcept {
 
     // read section header table
     ASSERT_EQ(sizeof(Elf64_Shdr), ehdr->e_shentsize) << "section header table entry size invalid";
-    ASSERT_EQ((off_t)ehdr->e_shoff, lseek(fd, ehdr->e_shoff, SEEK_SET))
-                << "seek section header table error [" << errno << "] [" << strerror(errno) << "]";
-    g_elf_info.sh_tbl = new Elf64_Shdr[ehdr->e_shnum];
-    ssize_t shdr_size = ehdr->e_shnum * ehdr->e_shentsize;
-    ASSERT_EQ(shdr_size, read(fd, g_elf_info.sh_tbl, shdr_size))
-                << "read section header table error [" << errno << "] [" << strerror(errno) << "]";
+    off_t offset = ehdr->e_shoff;
+    E(ASSERT_EQ(offset, lseek(fd, offset, SEEK_SET)) << "seek section header table");
+    g_elf_info.sh_tbl = std::unique_ptr<Elf64_Shdr[]>(new Elf64_Shdr[ehdr->e_shnum]);
+    ssize_t size = ehdr->e_shnum * ehdr->e_shentsize;
+    E(ASSERT_EQ(size, read(fd, g_elf_info.sh_tbl.get(), size)) << "read section header table");
     g_elf_info.sh_cnt = ehdr->e_shnum;
 
     // read section header string table
     auto str_tbl = g_elf_info.sh_tbl[ehdr->e_shstrndx];
-    g_elf_info.shstr_tab_size = str_tbl.sh_size;
-    g_elf_info.shstr_tbl = new char[g_elf_info.shstr_tab_size];
-    ASSERT_EQ((off_t)str_tbl.sh_offset, lseek(fd, str_tbl.sh_offset, SEEK_SET))
-                << "seek section header string table error [" << errno << "] [" << strerror(errno) << "]";
-    ASSERT_EQ((ssize_t)g_elf_info.shstr_tab_size, read(fd, g_elf_info.shstr_tbl, g_elf_info.shstr_tab_size))
-                << "read section header string table error [" << errno << "] [" << strerror(errno) << "]";
+    offset = str_tbl.sh_offset;
+    size = g_elf_info.shstr_tab_size = str_tbl.sh_size;
+    g_elf_info.shstr_tbl = std::unique_ptr<char[]>(new char[g_elf_info.shstr_tab_size]);
+    E(ASSERT_EQ(offset, lseek(fd, offset, SEEK_SET)) << "seek section header string table");
+    E(ASSERT_EQ(size, read(fd, g_elf_info.shstr_tbl.get(), size)) << "read section header string table");
 
 #ifdef PT_GNU_RELRO
     // read program header table
-    ASSERT_EQ((off_t)ehdr->e_phoff, lseek(fd, ehdr->e_phoff, SEEK_SET)) << "lseek program header table error";
+    offset = ehdr->e_phoff;
+    Elf64_Phdr phdr;
+    size = sizeof(phdr);
+    ASSERT_EQ(offset, lseek(fd, offset, SEEK_SET)) << "lseek program header table error";
     for (size_t idx = 0; idx < ehdr->e_phnum; idx++) {
-        Elf64_Phdr phdr;
-        ASSERT_EQ((ssize_t)sizeof(phdr), read(fd, &phdr, sizeof(phdr)))
-                    << "read program header table error [" << errno << "] [" << strerror(errno) << "]";
+        E(ASSERT_EQ(size, read(fd, &phdr, size)) << "read program header table");
         if (phdr.p_type == PT_GNU_RELRO) {
             g_elf_info.relro_start = (const char*) phdr.p_vaddr;
             g_elf_info.relro_end = g_elf_info.relro_start + phdr.p_memsz;
@@ -218,7 +213,7 @@ static void GetSectionTable(const char *name, const Elf64_Shdr **shdr) noexcept 
     for (size_t i = 0; i < g_elf_info.sh_cnt; i++) {
         auto sh = &g_elf_info.sh_tbl[i];
         ASSERT_LT(sh->sh_name + len, g_elf_info.shstr_tab_size) << "header string table overflow";
-        if (strcmp(g_elf_info.shstr_tbl + sh->sh_name, name) == 0) {
+        if (strcmp(&g_elf_info.shstr_tbl[sh->sh_name], name) == 0) {
             // found the section
             *shdr = sh;
             return;
@@ -281,8 +276,7 @@ static void SetGotValue(void **addr, void *value) noexcept {
     void *maddr = nullptr;
     if (g_elf_info.relro_start <= (char*)addr && (char*)addr < g_elf_info.relro_end) {
         maddr = (void*)((size_t)addr & ~(g_page_size - 1));
-        ASSERT_EQ(0, mprotect(maddr, g_page_size, PROT_READ | PROT_WRITE))
-                    << "mprotect error [" << errno << "] [" << strerror(errno) << "]";
+        E(ASSERT_EQ(0, mprotect(maddr, g_page_size, PROT_READ | PROT_WRITE)) << "mprotect");
     }
 #endif
 

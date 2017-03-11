@@ -1,6 +1,10 @@
 # glibc mock
 
 [![Build Status](https://travis-ci.org/lonnywang/glibcmock.svg?branch=master)](https://travis-ci.org/lonnywang/glibcmock)
+[![Coverage Status](https://coveralls.io/repos/github/lonnywang/glibcmock/badge.svg?branch=master)](https://coveralls.io/github/lonnywang/glibcmock?branch=master)
+[![Coverage Status](https://img.shields.io/codecov/c/github/lonnywang/glibcmock/master.svg)](https://codecov.io/gh/lonnywang/glibcmock)
+[![Code Health](https://landscape.io/github/lonnywang/glibcmock/master/landscape.svg?style=flat)](https://landscape.io/github/lonnywang/glibcmock/master)
+[![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](../master/LICENSE)
   
 Welcome to **glibc mock**, a solution of mocking glibc function (open, read, write … etc.) with [Google Test](https://github.com/google/googletest) and [Google Mock](https://github.com/google/googletest/blob/master/googlemock/README.md)!  
   

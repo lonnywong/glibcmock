@@ -44,10 +44,10 @@ clean :
 	rm -f $(TESTS) $(TEST_OBJS) $(SRC_OBJS)
 
 $(SRC_DIR)/%.o : $(SRC_DIR)/%.cc
-	$(CXX) -I$(SRC_DIR) -I$(TEST_DIR) $(CXX_FLAGS) -c $< -o $@
+	$(CXX) -I$(SRC_DIR) -I$(TEST_DIR) $(CXX_FLAGS) -fprofile-arcs -ftest-coverage -c $< -o $@
 
 $(TEST_DIR)/%.o : $(TEST_DIR)/%.cc
 	$(CXX) -I$(SRC_DIR) -I$(TEST_DIR) $(CXX_FLAGS) -c $< -o $@
 
 $(TESTS) : $(TEST_OBJS) $(SRC_OBJS)
-	$(CXX) $^ -o $@ -pthread
+	$(CXX) -z relro -z now $^ -o $@ -pthread -lgcov
