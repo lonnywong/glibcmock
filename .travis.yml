@@ -15,7 +15,6 @@ addons:
     packages:
       - gcc-4.8
       - g++-4.8
-      - gcov-4.8
 
 install:
   - pip install --user cpp-coveralls
