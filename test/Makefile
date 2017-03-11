@@ -37,6 +37,9 @@ TEST_OBJS = $(patsubst $(TEST_DIR)/%.cc, $(TEST_DIR)/%.o, $(wildcard $(TEST_DIR)
 
 all : $(TESTS)
 
+test : $(TESTS)
+	./$(TESTS) --gtest_death_test_style=threadsafe
+
 clean :
 	rm -f $(TESTS) $(TEST_OBJS) $(SRC_OBJS)
 

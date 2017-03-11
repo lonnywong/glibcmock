@@ -1,0 +1,8 @@
+language: cpp
+os:
+  - linux
+compiler:
+  - gcc
+  - clang
+script:
+  - cd test && make clean && make && make test

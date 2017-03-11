@@ -1,5 +1,7 @@
 # glibc mock
 
+[![Build Status](https://travis-ci.org/lonnywang/glibcmock.svg?branch=master)](https://travis-ci.org/lonnywang/glibcmock)
+  
 Welcome to **glibc mock**, a solution of mocking glibc function (open, read, write … etc.) with [Google Test](https://github.com/google/googletest) and [Google Mock](https://github.com/google/googletest/blob/master/googlemock/README.md)!  
   
 *Mock glibc function by changing GOT value to custom static function address.*  
