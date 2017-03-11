@@ -17,6 +17,7 @@ addons:
       - g++-4.8
 
 install:
+  - pip install urllib3[secure]
   - pip install --user cpp-coveralls
 
 script:
@@ -26,7 +27,8 @@ script:
 after_success:
   - cd ..
   - coveralls -b test -e test -x cc --gcov gcov-4.8 --gcov-options '\-lp'
-  - bash <(curl -s https://codecov.io/bash) -f "!test/*"
+  - rm -f *.h.gcov
+  - bash <(curl -s https://codecov.io/bash)
 
 notifications:
   email:
