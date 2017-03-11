@@ -1,27 +1,46 @@
-# Build matrix / environment variable are explained on:
-# http://about.travis-ci.org/docs/user/build-configuration/
-# This file can be validated on:
-# http://lint.travis-ci.org/
+# Linux Build Configuration for Travis
 
-before_install:
-# /usr/bin/gcc is 4.6 always, but gcc-X.Y is available.
-  - if [ "$CXX" = "g++" ]; then export CXX="g++-4.9" CC="gcc-4.9"; fi
-# /usr/bin/clang is 3.4, lets override with modern one.
-  - if [ "$CXX" = "clang++" ] && [ "$TRAVIS_OS_NAME" = "linux" ]; then export CXX="clang++-3.7" CC="clang-3.7"; fi
-  - echo ${PATH}
-  - echo ${CXX}
-  - ${CXX} --version
-  - ${CXX} -v
-  - pip install --user cpp-coveralls
+sudo: false
+
+language: cpp
+
 os:
   - linux
-language: cpp
+
 compiler:
-  - gcc
   - clang
+  - gcc
+
+cache:
+  apt: true
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+      - llvm-toolchain-precise-3.7
+    packages:
+      - gcc-4.9
+      - g++-4.9
+      - clang-3.7
+
+install:
+  - pip install --user cpp-coveralls
+
+  - if [ "$CC" = "gcc"   ]; then export CC=gcc-4.9 CXX=g++-4.9; fi       # Make sure that gcc-4.9 is selected.
+  - if [ "$CC" = "clang" ]; then export CC=clang-3.7 CXX=clang++-3.7; fi # Make sure that clang-3.7 is selected
+
 script:
   - cd test && make clean && make && make test
   - find .. -name '*.cc' -not -path '../test/*' | xargs gcov-5 -n -o ..
+
 after_success:
   - bash <(curl -s https://codecov.io/bash)
   - coveralls -b test -r .. -e test -x cc --gcov-options '\-lp'
+
+notifications:
+  email:
+    recipients:
+      - lonnywang@qq.com
+    on_success: change
+    on_failure: always
