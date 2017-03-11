@@ -27,3 +27,13 @@
 *.exe
 *.out
 *.app
+
+# Project files
+/.cproject
+/.project
+/.settings/*
+
+# Test Executables
+/test/glibc_mock_test
+
+# Others
