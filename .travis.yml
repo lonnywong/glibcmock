@@ -8,24 +8,25 @@ language: cpp
 
 compiler: gcc
 
-before_install:
-  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-  - sudo apt-get update -qq
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - gcc-4.8
+      - g++-4.8
 
 install:
   - pip install --user cpp-coveralls
-  - sudo apt-get install -qq g++-5
-  - sudo update-alternatives --install /usr/bin/gcov gcov /usr/bin/gcov-5 90
 
 script:
-  - export CXX=g++-5
+  - export CXX=g++-4.8
   - cd test && make clean && make && make test
-  - find .. -name '*.cc' -not -path '../test/*' | xargs gcov-5 -n -o ..
 
 after_success:
   - cd ..
   - coveralls -b test -e test -x cc --gcov-options '\-lp'
-  - bash <(curl -s https://codecov.io/bash)
+  - bash <(curl -s https://codecov.io/bash) -f "!test/*"
 
 notifications:
   email:

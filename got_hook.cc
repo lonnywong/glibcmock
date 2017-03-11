@@ -38,6 +38,7 @@
 
 #include <mutex>
 #include <stack>
+#include <memory>
 
 #include "gtest/gtest.h"
 
@@ -233,16 +234,12 @@ static void GetGotEntryAddr(const char *name, void ***addr) noexcept {
     // find on dynamic relocation entries
     for (size_t i = 0; i < g_elf_info.dyn_cnt; i++) {
         ASSERT_NO_FATAL_FAILURE(DoGetGotAddr(name, len, &g_elf_info.dyn_tbl[i], addr, &found));
-        if (found) {
-            return;
-        }
+        if (found) return;
     }
     // find on procedure linkage table
     for (size_t i = 0; i < g_elf_info.plt_cnt; i++) {
         ASSERT_NO_FATAL_FAILURE(DoGetGotAddr(name, len, &g_elf_info.plt_tbl[i], addr, &found));
-        if (found) {
-            return;
-        }
+        if (found) return;
     }
     if (!found) {
         FAIL() << "couldn't find the function name [" << name << "]";
