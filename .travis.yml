@@ -25,16 +25,14 @@ addons: &gcc5
 install:
   - pip install --user cpp-coveralls
 
-  - if [ "$CXX" = "g++"   ]; then export CXX=g++-5; fi       # Make sure that g++-5 is selected.
-
 script:
+  - export CXX=g++-5
   - cd test && make clean && make && make test
-  - find .. -name '*.cc' -not -path '../test/*' | xargs gcov-5 -n -o ..
 
 after_success:
   - cd ..
-  - bash <(curl -s https://codecov.io/bash)
   - coveralls -b test -e test -x cc --gcov-options '\-lp'
+  - bash <(curl -s https://codecov.io/bash)
 
 notifications:
   email:
