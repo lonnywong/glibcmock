@@ -2,7 +2,7 @@
 
 os: linux
 
-sudo: require
+sudo: false
 
 language: cpp
 
@@ -15,6 +15,7 @@ addons:
     packages:
       - gcc-4.8
       - g++-4.8
+      - gcov-4.8
 
 install:
   - pip install --user cpp-coveralls
@@ -25,7 +26,7 @@ script:
 
 after_success:
   - cd ..
-  - coveralls -b test -e test -x cc --gcov-options '\-lp'
+  - coveralls -b test -e test -x cc --gcov gcov-4.8 --gcov-options '\-lp'
   - bash <(curl -s https://codecov.io/bash) -f "!test/*"
 
 notifications:
