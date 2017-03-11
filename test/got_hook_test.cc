@@ -290,7 +290,7 @@ void DoGetLockFailed() {
         exit(122);
     }
     // time(nullptr) should call the libc function
-    if (abs(time(nullptr) - true_time) > 1) {
+    if (labs(time(nullptr) - true_time) > 1) {
         // should not mock success
         exit(123);
     }
@@ -350,7 +350,7 @@ void DoShareGotHook(testing::GotHook *got_hook) {
         exit(132);
     }
     // time(nullptr) should call the libc function
-    if (abs(time(nullptr) - true_time) > 1) {
+    if (labs(time(nullptr) - true_time) > 1) {
         // should not mock success
         exit(133);
     }
