@@ -8,27 +8,24 @@ os:
   - linux
 
 compiler:
-  - clang
   - gcc
 
 cache:
   apt: true
 
-addons:
+addons: &gcc5
   apt:
+    packages:
+      - gcc-5
+      - g++-5
     sources:
       - ubuntu-toolchain-r-test
-      - llvm-toolchain-precise-3.7
-    packages:
-      - gcc-4.9
-      - g++-4.9
-      - clang-3.7
+      - llvm-toolchain-precise-3.6
 
 install:
   - pip install --user cpp-coveralls
 
-  - if [ "$CC" = "gcc"   ]; then export CC=gcc-4.9 CXX=g++-4.9; fi       # Make sure that gcc-4.9 is selected.
-  - if [ "$CC" = "clang" ]; then export CC=clang-3.7 CXX=clang++-3.7; fi # Make sure that clang-3.7 is selected
+  - if [ "$CXX" = "g++"   ]; then export CXX=g++-5; fi       # Make sure that g++-5 is selected.
 
 script:
   - cd test && make clean && make && make test
