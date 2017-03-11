@@ -17,8 +17,7 @@ addons:
       - g++-4.8
 
 install:
-  - pip install urllib3[secure]
-  - pip install --user cpp-coveralls
+  - pip install --user urllib3[secure] cpp-coveralls
 
 script:
   - export CXX=g++-4.8
