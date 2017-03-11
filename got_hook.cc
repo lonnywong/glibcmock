@@ -327,9 +327,8 @@ GotHook::~GotHook() {
         return;
     }
     // last object should be delete first, to make sure that GOT value can be restore to the right one.
-    if (g_object_stack.empty() || object_id_ != g_object_stack.top()) {
-        ADD_FAILURE() << "last new GotHook object should be delete first";
-    }
+    EXPECT_TRUE(!g_object_stack.empty()
+            && object_id_ == g_object_stack.top()) << "last new GotHook object should be deleted first";
     // if the deleting object is on the top or in the middle of the stack, then restore GOT value to original.
     // otherwise, an object before this has been deleted, may not be able to restore GOT value to original correctly.
     if (!g_object_stack.empty() && object_id_ <= g_object_stack.top()) {
@@ -348,11 +347,8 @@ GotHook::~GotHook() {
         }
     }
     // release the look.
-    if (g_locked_thread_id != gettid()) {
-        ADD_FAILURE() << "the GotHook object should not be deleted by the other thread";
-    } else {
-        g_hook_mutex.unlock();
-    }
+    EXPECT_EQ(g_locked_thread_id, gettid()) << "the GotHook object should not be deleted by the other thread";
+    g_hook_mutex.unlock();
 }
 
 // Mock a glibc function by changing GOT value to a static function address.

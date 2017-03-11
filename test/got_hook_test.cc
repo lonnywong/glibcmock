@@ -440,30 +440,3 @@ TEST_F(GotHookTest, RecursiveCall) {
     // check the GOT is original glibc function address or not
     EXPECT_NEAR(true_time, time(nullptr), 1) << "the GOT value should not been changed after recursive call";
 }
-
-void RandomDelete() {
-    testing::FLAGS_gtest_break_on_failure = false;
-    // ignore leak in the child process
-    testing::Mock::AllowLeak(g_mock);
-    testing::GotHook *first = new testing::GotHook();
-    testing::GotHook *second = new testing::GotHook();
-    if (testing::Test::HasFailure()) {
-        // should not has any error for now
-        exit(141);
-    }
-    // first GotHook object delete before second should has failure
-    delete first;
-    if (!testing::Test::HasFailure()) {
-        // should not has any error for now
-        exit(142);
-    }
-    delete second;
-    // test success
-    exit(0);
-}
-
-TEST_F(GotHookTest, RandomDelete) {
-    // should exit with 0 when test success
-    EXPECT_EXIT(RandomDelete(), testing::ExitedWithCode(0), "")
-                        << "first GotHook object delete before second should has failure";
-}
