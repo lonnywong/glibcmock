@@ -20,7 +20,7 @@ addons: &gcc5
       - g++-5
     sources:
       - ubuntu-toolchain-r-test
-      - llvm-toolchain-precise-3.6
+      - llvm-toolchain-precise-3.9
 
 install:
   - pip install --user cpp-coveralls
@@ -32,8 +32,9 @@ script:
   - find .. -name '*.cc' -not -path '../test/*' | xargs gcov-5 -n -o ..
 
 after_success:
+  - cd ..
   - bash <(curl -s https://codecov.io/bash)
-  - coveralls -b test -r .. -e test -x cc --gcov-options '\-lp'
+  - coveralls -b test -e test -x cc --gcov-options '\-lp'
 
 notifications:
   email:
