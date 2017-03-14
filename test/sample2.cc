@@ -28,93 +28,66 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-#include <fcntl.h>
-#include <stdarg.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 
 #include <mutex>
+#include <memory>
 
 using testing::_;
-using testing::Invoke;
 using testing::Return;
 
-constexpr const char *prod_file = "/usr/local/xxx";
-constexpr const char *test_file = "/tmp/xxx";
+constexpr key_t shm_key = 0x123;
 
-struct Panda {
-    void OpenFile() {
-        auto fd = open(prod_file, O_RDONLY);
+struct Turtle {
+    void UseSharedMemory() {
+        auto shm_id = shmget(shm_key, 0, 0);
+        auto buffer = shmat(shm_id, nullptr, 0);
+        EXPECT_STREQ("a fake shm buffer", (char*)buffer);
         // ...
-        ASSERT_NE(-1, fd) << "open error [" << errno << "] [" << strerror(errno) << "]";
-        // check the file name which has been opened
-        char fd_path[128], file_path[128];
-        snprintf(fd_path, sizeof(fd_path), "/proc/self/fd/%d", fd);
-        memset(file_path, 0, sizeof(file_path));
-        ASSERT_NE(-1, readlink(fd_path, file_path, sizeof(file_path)))
-                    << "readlink error [" << errno << "] [" << strerror(errno) << "]";
-        EXPECT_STREQ(test_file, file_path);
-        if (fd != -1) {
-            close(fd);
-        }
+        shmdt(buffer);
     }
 };
 
-struct MockPanda : Panda {
-    MOCK_METHOD2(Open, int(const char*, int));
+struct MockTurtle : Turtle {
+    MOCK_METHOD3(shmget, int(key_t, size_t, int));
+    MOCK_METHOD3(shmat, void*(int, const void*, int));
+    MOCK_METHOD1(shmdt, int(const void*));
 };
+
+static MockTurtle *g_turtle{nullptr};
+
+static int my_shmget(key_t key, size_t size, int shmflg) {
+    return g_turtle->shmget(key, size, shmflg);
+}
+
+static void *my_shmat(int shmid, const void *shmaddr, int shmflg) {
+    return g_turtle->shmat(shmid, shmaddr, shmflg);
+}
+
+static int my_shmdt(const void *shmaddr) {
+    return g_turtle->shmdt(shmaddr);
+}
 
 static std::mutex g_test_mutex;
 
-static MockPanda *g_panda{nullptr};
-
-static int (*libc_open)(const char*, int, ...);
-
-struct PandaTest : testing::Test {
-    testing::GotHook *got_hook{nullptr};
-
-    virtual void SetUp() {
-        g_test_mutex.lock(); // not thread safe
-        g_panda = new MockPanda();
-        ASSERT_NO_FATAL_FAILURE({
-            got_hook = new testing::GotHook();
-            got_hook->MockFunction("open", (void*)&Open, (void**)&libc_open);
-        });
-        ON_CALL(*g_panda, Open(_, _)).WillByDefault(Invoke(libc_open));
-        // ...
-        // create the test file
-        int fd = open(test_file, O_CREAT, 0600);
-        EXPECT_NE(-1, fd) << "open [" << test_file << "] error [" << errno << "] [" << strerror(errno) << "]";
-        if (fd != -1) {
-            close(fd);
-        }
-    }
-
-    virtual void TearDown() {
-        delete got_hook;
-        delete g_panda;
-        g_test_mutex.unlock();
-    }
-
-    static int Open(const char *pathname, int flags, ...) {
-        if (strcmp(prod_file, pathname) == 0) {
-            return g_panda->Open(test_file, flags);
-        } else {
-            if (flags & O_CREAT) {
-                va_list arg;
-                va_start(arg, flags);
-                mode_t mode = va_arg(arg, mode_t);
-                va_end(arg);
-                return libc_open(pathname, flags, mode);
-            } else {
-                return libc_open(pathname, flags);
-            }
-        }
-    }
-};
-
-TEST_F(PandaTest, OpenTestFile) {
+TEST(TurtleTest, FakeSharedMemory) {
+    std::lock_guard<std::mutex> lock(g_test_mutex); // not thread safe
+    std::unique_ptr<MockTurtle> turtle(g_turtle = new MockTurtle());
+    // should not be placed into ASSERT_NO_FATAL_FAILURE, or it will be destructed before test
+    testing::GotHook got_hook;
+    ASSERT_NO_FATAL_FAILURE({
+        got_hook.MockFunction("shmget", (void*)&my_shmget);
+        got_hook.MockFunction("shmat", (void*)&my_shmat);
+        got_hook.MockFunction("shmdt", (void*)&my_shmdt);
+    });
+    constexpr int shm_id = 100;
+    char fake_shm_buffer[2000]{"a fake shm buffer"};
     // ...
-    EXPECT_CALL(*g_panda, Open(test_file, O_RDONLY));
+    EXPECT_CALL(*g_turtle, shmget(shm_key, _, _)).WillOnce(Return(shm_id));
+    EXPECT_CALL(*g_turtle, shmat(shm_id, _, _)).WillOnce(Return(fake_shm_buffer));
+    EXPECT_CALL(*g_turtle, shmdt(fake_shm_buffer)).WillOnce(Return(0));
     // ...
-    g_panda->OpenFile();
+    g_turtle->UseSharedMemory();
     // ...
 }
